@@ -23,13 +23,13 @@ jobs:
         run: |
           # Building the PR Data
           # The assignee will be the actor that published the release
-          PR_DATA=$(gh pr create \
+          PR_URL=$(gh pr create \
             --title "chore: [${{ github.ref_name }}] Merge release into master" \
             --body "Automated PR to merge `release` branch into `master` based on release event." \
             --base "master" \
             --head "release" \
             --assignee "@me")
-          echo "pr_data: $PR_DATA"
+          echo "pr_url: $PR_URL"
           pr_number=$(echo $PR_URL | grep -oP '/pull/\K\d+')
           echo "pr_number: $pr_number"
           echo "pr_number=pr_number" >> $GITHUB_OUTPUT
