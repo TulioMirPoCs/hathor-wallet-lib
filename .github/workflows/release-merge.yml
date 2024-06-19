@@ -22,11 +22,11 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           # Building the PR Data
+          # The assignee will be the actor that published the release
           PR_DATA=$(gh pr create \
             --title "chore: [${{ github.ref_name }}] Merge release into master" \
             --body "Automated PR to merge `release` branch into `master` based on release event." \
             --base "master" \
             --head "release" \
-            # The assignee will be the actor that published the release
             --assignee "@me")
           echo "Merge PR url: $PR_DATA"
