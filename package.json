@@ -1,6 +1,6 @@
 {
   "name": "@hathor/wallet-lib",
-  "version": "9.0.12",
+  "version": "9.0.13",
   "description": "Library used by Hathor Wallet",
   "main": "lib/index.js",
   "engines": {
@@ -39,7 +39,6 @@
     "lint:fix": "eslint 'src/**/*.{js,ts}' '__tests__/**/*.{js,ts}' --fix",
     "format": "prettier --write 'src/**/*.{js,ts}' '__tests__/**/*.{js,ts}'",
     "format:check": "prettier --check 'src/**/*.{js,ts}' '__tests__/**/*.{js,ts}'",
-    "version": "git push origin \"$(npm version patch)\""
   },
   "license": "MIT",
   "devDependencies": {
