@@ -30,7 +30,7 @@ jobs:
             --head "release" \
             --assignee "@me")
           echo "PR_URL: $PR_URL"
-          pr_number=$(echo PR_URL | grep -oP '/pull/\K\d+')
+          pr_number=$(echo $PR_URL | grep -oP '/pull/\K\d+')
           echo "PR_NUMBER: $PR_NUMBER"
           echo "PR_URL=$PR_URL" >> "$GITHUB_OUTPUT"
           echo "PR_NUMBER=$PR_NUMBER" >> "$GITHUB_OUTPUT"
