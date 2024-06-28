@@ -48,6 +48,7 @@ jobs:
             --url "$PR_URL" \
 
       - name: Fetch project column data
+        id: proj_columns
         env:
           PR_URL: ${{ steps.create_pull.outputs.PR_URL }}
         run: |
@@ -95,3 +96,58 @@ jobs:
           echo "FIELD_ID=$FIELD_ID" >> "$GITHUB_OUTPUT"
           echo "OPTION_ID=$OPTION_ID" >> "$GITHUB_OUTPUT"
 
+
+
+      - name: Fetch PR card Id
+        id: proj_cardId
+        env:
+          PR_URL: ${{ steps.create_pull.outputs.PR_URL }}
+        run: |
+          QUERY="
+            query {
+              organization(login: \"$ORG_NAME\") {
+                projectV2(number: $PROJECT_NUMBER) {
+                  items(first: 10) {
+                    nodes {
+                      id
+                      content {
+                        ... on Issue {
+                          id
+                          title
+                          number
+                          repository {
+                            owner {
+                              login
+                            }
+                            name
+                          }
+                          url
+                        }
+                        ... on PullRequest {
+                          id
+                          title
+                          number
+                          repository {
+                            owner {
+                              login
+                            }
+                            name
+                          }
+                          url
+                        }
+                      }
+                    }
+                  }
+                }
+             }
+            }"
+          PROJ_RESPONSE=$(gh api graphql -f query="$QUERY")
+          echo "Response: $PROJ_RESPONSE"
+
+          CARD_ID=$(echo "$PROJ_RESPONSE" | jq -r --arg pr_url "$PR_URL" '
+            .data.organization.projectV2.items.nodes[]
+            | select(.content.url == $pr_url)
+            | .id')
+
+          echo "CARD_ID: $CARD_ID"
+          echo "CARD_ID=$CARD_ID" >> "$GITHUB_OUTPUT"
