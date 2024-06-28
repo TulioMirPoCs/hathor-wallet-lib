@@ -96,8 +96,6 @@ jobs:
           echo "FIELD_ID=$FIELD_ID" >> "$GITHUB_OUTPUT"
           echo "OPTION_ID=$OPTION_ID" >> "$GITHUB_OUTPUT"
 
-
-
       - name: Fetch PR card Id
         id: proj_cardId
         env:
@@ -151,3 +149,32 @@ jobs:
 
           echo "CARD_ID: $CARD_ID"
           echo "CARD_ID=$CARD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Move card to correct column
+        id: mutateCard
+        env:
+          PROJECT_ID: ${{ steps.proj_columns.outputs.PROJECT_ID }}
+          FIELD_ID: ${{ steps.proj_columns.outputs.FIELD_ID }}
+          OPTION_ID: ${{ steps.proj_columns.outputs.OPTION_ID }}
+          CARD_ID: ${{ steps.proj_cardId.outputs.CARD_ID }}
+        run: |
+          QUERY="
+          mutation {
+            updateProjectV2ItemFieldValue(
+              input: {
+                projectId: \"$PROJECT_ID\",
+                itemId: \"$CARD_ID\",
+                fieldId: \"$FIELD_ID\",
+                value: {
+                  singleSelectOptionId: \"$OPTION_ID\"
+                }
+              }
+            ) {
+              projectV2Item {
+                id
+              }
+            }
+          }
+          "
+          PROJ_RESPONSE=$(gh api graphql -f query="$QUERY")
+          echo "Response: $PROJ_RESPONSE"
