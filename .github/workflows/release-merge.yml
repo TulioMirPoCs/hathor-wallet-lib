@@ -13,6 +13,7 @@ jobs:
       GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
       ORG_NAME: TulioMirPoCs
       PROJECT_NUMBER: 1
+      COLUMN_NAME: "In Progress"
 
     steps:
       - name: Checkout
@@ -72,19 +73,19 @@ jobs:
           PROJ_RESPONSE=$(gh api graphql -f query="$QUERY")
           echo "Response: $PROJ_RESPONSE"
 
-          PROJ_DATA=$(echo "$PROJ_RESPONSE" | jq -r '
-          .data.organization.projectV2.id as $projectId |
-          .data.organization.projectV2.field.id as $fieldId |
-          .data.organization.projectV2.field.options[] |
-          select(.name == "In Progress") |
-          {
-            projectId: $projectId,
-            fieldId: $fieldId,
-            optionId: .id
-          }')
-          PROJECT_ID=$(echo "$json_output" | jq -r '.projectId')
-          FIELD_ID=$(echo "$json_output" | jq -r '.fieldId')
-          OPTION_ID=$(echo "$json_output" | jq -r '.optionId')
+          PROJ_DATA=$(echo "$PROJ_RESPONSE" | jq -r --arg column_name "$COLUMN_NAME" '
+            .data.organization.projectV2.id as $projectId |
+            .data.organization.projectV2.field.id as $fieldId |
+            .data.organization.projectV2.field.options[] |
+            select(.name == $column_name) |
+            {
+              projectId: $projectId,
+              fieldId: $fieldId,
+              optionId: .id
+            }')
+          PROJECT_ID=$(echo "$PROJ_DATA" | jq -r '.projectId')
+          FIELD_ID=$(echo "$PROJ_DATA" | jq -r '.fieldId')
+          OPTION_ID=$(echo "$PROJ_DATA" | jq -r '.optionId')
 
           echo "PROJECT_ID: $PROJECT_ID"
           echo "FIELD_ID: $FIELD_ID"
