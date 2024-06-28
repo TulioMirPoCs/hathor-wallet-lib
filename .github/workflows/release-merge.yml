@@ -47,7 +47,7 @@ jobs:
             --owner $ORG_NAME \
             --url "$PR_URL" \
 
-      - name: Move project card to correct column
+      - name: Fetch project column data
         env:
           PR_URL: ${{ steps.create_pull.outputs.PR_URL }}
         run: |
@@ -91,7 +91,7 @@ jobs:
           echo "FIELD_ID: $FIELD_ID"
           echo "OPTION_ID: $OPTION_ID"
 
-          echo $PROJECT_ID=$PROJECT_ID" >> "$GITHUB_OUTPUT"
-          echo $FIELD_ID=$FIELD_ID" >> "$GITHUB_OUTPUT"
-          echo $OPTION_ID=$OPTION_ID" >> "$GITHUB_OUTPUT"
+          echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_OUTPUT"
+          echo "FIELD_ID=$FIELD_ID" >> "$GITHUB_OUTPUT"
+          echo "OPTION_ID=$OPTION_ID" >> "$GITHUB_OUTPUT"
 
