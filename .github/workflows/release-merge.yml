@@ -4,13 +4,15 @@ name: Create PR on Release
 on:
   workflow_dispatch:
   release:
-    types: [released]
+    types: [ released ]
 
 jobs:
   create-pull-request:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      ORG_NAME: TulioMirPoCs
+      PROJECT_NUMBER: 1
 
     steps:
       - name: Checkout
@@ -37,10 +39,58 @@ jobs:
 
       - name: Associate PR with project
         env:
-          PROJECT_NUMBER: 1
-          ORG_NAME: TulioMirPoCs
+          PR_NUMBER: ${{ steps.create_pull.outputs.PR_NUMBER }}
           PR_URL: ${{ steps.create_pull.outputs.PR_URL }}
         run: |
           gh project item-add $PROJECT_NUMBER \
             --owner $ORG_NAME \
             --url "$PR_URL" \
+
+      - name: Move project card to correct column
+        env:
+          PR_URL: ${{ steps.create_pull.outputs.PR_URL }}
+        run: |
+          QUERY="
+          query {
+            organization(login: \"$ORG_NAME\") {
+              projectV2(number: $PROJECT_NUMBER) {
+                id
+                field(name: \"Status\") {
+                  __typename
+                  ...on ProjectV2SingleSelectField {
+                    id
+                    options {
+                      id
+                      name
+                    }
+                  }
+                }
+              }
+            }
+          }
+          "
+          PROJ_RESPONSE=$(gh api graphql -f query="$QUERY")
+          echo "Response: $PROJ_RESPONSE"
+
+          PROJ_DATA=$(echo "$PROJ_RESPONSE" | jq -r '
+          .data.organization.projectV2.id as $projectId |
+          .data.organization.projectV2.field.id as $fieldId |
+          .data.organization.projectV2.field.options[] |
+          select(.name == "In Progress") |
+          {
+            projectId: $projectId,
+            fieldId: $fieldId,
+            optionId: .id
+          }')
+          PROJECT_ID=$(echo "$json_output" | jq -r '.projectId')
+          FIELD_ID=$(echo "$json_output" | jq -r '.fieldId')
+          OPTION_ID=$(echo "$json_output" | jq -r '.optionId')
+
+          echo "PROJECT_ID: $PROJECT_ID"
+          echo "FIELD_ID: $FIELD_ID"
+          echo "OPTION_ID: $OPTION_ID"
+
+          echo $PROJECT_ID=$PROJECT_ID" >> "$GITHUB_OUTPUT"
+          echo $FIELD_ID=$FIELD_ID" >> "$GITHUB_OUTPUT"
+          echo $OPTION_ID=$OPTION_ID" >> "$GITHUB_OUTPUT"
+
