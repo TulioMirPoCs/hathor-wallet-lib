@@ -4,13 +4,16 @@ name: Create PR on Release
 on:
   workflow_dispatch:
   release:
-    types: [released]
+    types: [ released ]
 
 jobs:
   create-pull-request:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      ORG_NAME: TulioMirPoCs
+      PROJECT_NUMBER: 1
+      COLUMN_NAME: "In Progress"
 
     steps:
       - name: Checkout
@@ -37,10 +40,114 @@ jobs:
 
       - name: Associate PR with project
         env:
-          PROJECT_NUMBER: 1
-          ORG_NAME: TulioMirPoCs
+          PR_NUMBER: ${{ steps.create_pull.outputs.PR_NUMBER }}
           PR_URL: ${{ steps.create_pull.outputs.PR_URL }}
         run: |
           gh project item-add $PROJECT_NUMBER \
             --owner $ORG_NAME \
             --url "$PR_URL" \
+
+      - name: Fetch project column data
+        id: proj_columns
+        env:
+          PR_URL: ${{ steps.create_pull.outputs.PR_URL }}
+        run: |
+          QUERY="
+          query {
+            organization(login: \"$ORG_NAME\") {
+              projectV2(number: $PROJECT_NUMBER) {
+                id
+                field(name: \"Status\") {
+                  __typename
+                  ...on ProjectV2SingleSelectField {
+                    id
+                    options {
+                      id
+                      name
+                    }
+                  }
+                }
+              }
+            }
+          }
+          "
+          PROJ_RESPONSE=$(gh api graphql -f query="$QUERY")
+          echo "Response: $PROJ_RESPONSE"
+
+          PROJ_DATA=$(echo "$PROJ_RESPONSE" | jq -r --arg column_name "$COLUMN_NAME" '
+            .data.organization.projectV2.id as $projectId |
+            .data.organization.projectV2.field.id as $fieldId |
+            .data.organization.projectV2.field.options[] |
+            select(.name == $column_name) |
+            {
+              projectId: $projectId,
+              fieldId: $fieldId,
+              optionId: .id
+            }')
+          PROJECT_ID=$(echo "$PROJ_DATA" | jq -r '.projectId')
+          FIELD_ID=$(echo "$PROJ_DATA" | jq -r '.fieldId')
+          OPTION_ID=$(echo "$PROJ_DATA" | jq -r '.optionId')
+
+          echo "PROJECT_ID: $PROJECT_ID"
+          echo "FIELD_ID: $FIELD_ID"
+          echo "OPTION_ID: $OPTION_ID"
+
+          echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_OUTPUT"
+          echo "FIELD_ID=$FIELD_ID" >> "$GITHUB_OUTPUT"
+          echo "OPTION_ID=$OPTION_ID" >> "$GITHUB_OUTPUT"
+
+
+
+      - name: Fetch PR card Id
+        id: proj_cardId
+        env:
+          PR_URL: ${{ steps.create_pull.outputs.PR_URL }}
+        run: |
+          QUERY="
+            query {
+              organization(login: \"$ORG_NAME\") {
+                projectV2(number: $PROJECT_NUMBER) {
+                  items(first: 10) {
+                    nodes {
+                      id
+                      content {
+                        ... on Issue {
+                          id
+                          title
+                          number
+                          repository {
+                            owner {
+                              login
+                            }
+                            name
+                          }
+                          url
+                        }
+                        ... on PullRequest {
+                          id
+                          title
+                          number
+                          repository {
+                            owner {
+                              login
+                            }
+                            name
+                          }
+                          url
+                        }
+                      }
+                    }
+                  }
+                }
+             }
+            }"
+          PROJ_RESPONSE=$(gh api graphql -f query="$QUERY")
+          echo "Response: $PROJ_RESPONSE"
+
+          CARD_ID=$(echo "$PROJ_RESPONSE" | jq -r --arg pr_url "$PR_URL" '
+            .data.organization.projectV2.items.nodes[]
+            | select(.content.url == $pr_url)
+            | .id')
+
+          echo "CARD_ID: $CARD_ID"
+          echo "CARD_ID=$CARD_ID" >> "$GITHUB_OUTPUT"
