@@ -11,11 +11,20 @@ QUERY="
     repository(owner: \"$ORG_NAME\", name: \"$REPO_NAME\") {
       pullRequest(number: $PR_NUMBER) {
         id
+        projectItems(first: 100) {
+          ... on ProjectV2ItemConnection {
+            nodes {
+              ... on ProjectV2Item {
+                id
+              }
+            }
+          }
+        }
       }
     }
   }"
 PROJ_RESPONSE=$(gh api graphql -f query="$QUERY")
 
-CARD_ID=$(echo "$PROJ_RESPONSE" | jq -r '.data.repository.pullRequest.id')
+CARD_ID=$(echo "$PROJ_RESPONSE" | jq -r '.data.repository.pullRequest.projectItems.nodes[0].id')
 
 echo "CARD_ID: $CARD_ID"
