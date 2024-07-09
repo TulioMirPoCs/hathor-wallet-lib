@@ -33,8 +33,12 @@ jobs:
             --head "release" \
             --assignee "@me")
 
-          # Store value in step output
+          # Obtaining the PR number from its URL
+          PR_NUMBER=$(echo $PR_URL | grep -oP '/pull/\K\d+')
+
+          # Store values in step output
           echo "PR_URL=$PR_URL" >> "$GITHUB_OUTPUT"
+          echo "PR_NUMBER=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
       - name: Associate PR with project
         env:
@@ -46,8 +50,6 @@ jobs:
 
       - name: Fetch project and column data
         id: proj_columns
-        env:
-          PR_URL: ${{ steps.create_pull.outputs.PR_URL }}
         # There is no direct command to move a card inside a project. Here we start gathering id data about the project
         # to do this operation through the API
         run: |
@@ -95,31 +97,19 @@ jobs:
       - name: Fetch PR card Id
         id: proj_cardId
         env:
-          PR_URL: ${{ steps.create_pull.outputs.PR_URL }}
+          PR_URL: ${{ steps.create_pull.outputs.PR_NUMBER }}
         run: |
           QUERY="
             query {
-              organization(login: \"$ORG_NAME\") {
-                projectV2(number: $PROJECT_NUMBER) {
-                  items(first: 500) {
-                    nodes {
-                      id
-                      content {
-                        ... on PullRequest {
-                          url
-                        }
-                      }
-                    }
-                  }
+              repository(owner: \"$ORG_NAME\", name: ${{ github.repository }}) {
+                pullRequest(number: \"$PR_NUMBER\") {
+                  id
                 }
-             }
+              }
             }"
           PROJ_RESPONSE=$(gh api graphql -f query="$QUERY")
 
-          CARD_ID=$(echo "$PROJ_RESPONSE" | jq -r --arg pr_url "$PR_URL" '
-            .data.organization.projectV2.items.nodes[]
-            | select(.content.url == $pr_url)
-            | .id')
+          CARD_ID=$(echo "$PROJ_RESPONSE" | jq -r '.data.repository.pullRequest.id')
 
           # Store value in step output
           echo "CARD_ID=$CARD_ID" >> "$GITHUB_OUTPUT"
