@@ -98,7 +98,7 @@ jobs:
         id: proj_cardId
         env:
           PR_URL: ${{ steps.create_pull.outputs.PR_NUMBER }}
-          REPO_NAME: ${{ github.repository }}
+          REPO_NAME: $(basename ${{ github.repository }})
         run: |
           QUERY="
               query {
