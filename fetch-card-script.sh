@@ -2,9 +2,10 @@
 #export GH_TOKEN=abc123
 
 #gh project item-add "$PROJECT_NUMBER" --owner "@me" --url "$PR_URL"
+github_ref_name=TulioMirPoCs/hathor-wallet-lib
 ORG_NAME="TulioMirPoCs"
 PR_NUMBER=18
-REPO_NAME=hathor-wallet-lib
+REPO_NAME=$(basename "$github_ref_name")
 QUERY="
   query {
     repository(owner: \"$ORG_NAME\", name: \"$REPO_NAME\") {
