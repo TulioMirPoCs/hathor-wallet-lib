@@ -98,15 +98,16 @@ jobs:
         id: proj_cardId
         env:
           PR_URL: ${{ steps.create_pull.outputs.PR_NUMBER }}
+          REPO_NAME: ${{ github.repository }}
         run: |
           QUERY="
-            query {
-              repository(owner: \"$ORG_NAME\", name: ${{ github.repository }}) {
-                pullRequest(number: \"$PR_NUMBER\") {
-                  id
+              query {
+                repository(owner: \"$ORG_NAME\", name: \"$REPO_NAME\") {
+                  pullRequest(number: $PR_NUMBER) {
+                    id
+                  }
                 }
-              }
-            }"
+              }"
           PROJ_RESPONSE=$(gh api graphql -f query="$QUERY")
 
           CARD_ID=$(echo "$PROJ_RESPONSE" | jq -r '.data.repository.pullRequest.id')
