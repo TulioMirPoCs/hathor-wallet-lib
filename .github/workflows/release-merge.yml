@@ -1,4 +1,4 @@
-name: Create PR on Release
+name: Sync Release with Master
 
 # Triggered when a new version is released publicly
 on:
@@ -7,7 +7,8 @@ on:
     types: [ released ]
 
 jobs:
-  create-pull-request:
+  create-sync-pull-request:
+    name: Create release sync PR
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
@@ -24,33 +25,31 @@ jobs:
       - name: Create Pull Request
         id: create_pull
         run: |
-          # Building the PR Data
-          # The assignee will be the actor that published the release
+          # The assignee will be the user that manually published the release
           PR_URL=$(gh pr create \
             --title "chore: [${{ github.ref_name }}] Merge release into master" \
             --body "Automated PR to merge `release` branch into `master` based on release event." \
             --base "master" \
             --head "release" \
             --assignee "@me")
-          echo "PR_URL: $PR_URL"
-          pr_number=$(echo $PR_URL | grep -oP '/pull/\K\d+')
-          echo "PR_NUMBER: $PR_NUMBER"
+
+          # Store value in step output
           echo "PR_URL=$PR_URL" >> "$GITHUB_OUTPUT"
-          echo "PR_NUMBER=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
       - name: Associate PR with project
         env:
-          PR_NUMBER: ${{ steps.create_pull.outputs.PR_NUMBER }}
           PR_URL: ${{ steps.create_pull.outputs.PR_URL }}
         run: |
           gh project item-add $PROJECT_NUMBER \
             --owner $ORG_NAME \
             --url "$PR_URL" \
 
-      - name: Fetch project column data
+      - name: Fetch project and column data
         id: proj_columns
         env:
           PR_URL: ${{ steps.create_pull.outputs.PR_URL }}
+        # There is no direct command to move a card inside a project. Here we start gathering id data about the project
+        # to do this operation through the API
         run: |
           QUERY="
           query {
@@ -72,8 +71,8 @@ jobs:
           }
           "
           PROJ_RESPONSE=$(gh api graphql -f query="$QUERY")
-          echo "Response: $PROJ_RESPONSE"
 
+          # Parse json response and fetch necessary data identifiers from it
           PROJ_DATA=$(echo "$PROJ_RESPONSE" | jq -r --arg column_name "$COLUMN_NAME" '
             .data.organization.projectV2.id as $projectId |
             .data.organization.projectV2.field.id as $fieldId |
@@ -88,10 +87,7 @@ jobs:
           FIELD_ID=$(echo "$PROJ_DATA" | jq -r '.fieldId')
           OPTION_ID=$(echo "$PROJ_DATA" | jq -r '.optionId')
 
-          echo "PROJECT_ID: $PROJECT_ID"
-          echo "FIELD_ID: $FIELD_ID"
-          echo "OPTION_ID: $OPTION_ID"
-
+          # Store values in step output
           echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_OUTPUT"
           echo "FIELD_ID=$FIELD_ID" >> "$GITHUB_OUTPUT"
           echo "OPTION_ID=$OPTION_ID" >> "$GITHUB_OUTPUT"
@@ -105,32 +101,11 @@ jobs:
             query {
               organization(login: \"$ORG_NAME\") {
                 projectV2(number: $PROJECT_NUMBER) {
-                  items(first: 10) {
+                  items(first: 500) {
                     nodes {
                       id
                       content {
-                        ... on Issue {
-                          id
-                          title
-                          number
-                          repository {
-                            owner {
-                              login
-                            }
-                            name
-                          }
-                          url
-                        }
                         ... on PullRequest {
-                          id
-                          title
-                          number
-                          repository {
-                            owner {
-                              login
-                            }
-                            name
-                          }
                           url
                         }
                       }
@@ -140,14 +115,13 @@ jobs:
              }
             }"
           PROJ_RESPONSE=$(gh api graphql -f query="$QUERY")
-          echo "Response: $PROJ_RESPONSE"
 
           CARD_ID=$(echo "$PROJ_RESPONSE" | jq -r --arg pr_url "$PR_URL" '
             .data.organization.projectV2.items.nodes[]
             | select(.content.url == $pr_url)
             | .id')
 
-          echo "CARD_ID: $CARD_ID"
+          # Store value in step output
           echo "CARD_ID=$CARD_ID" >> "$GITHUB_OUTPUT"
 
       - name: Move card to correct column
@@ -177,4 +151,3 @@ jobs:
           }
           "
           PROJ_RESPONSE=$(gh api graphql -f query="$QUERY")
-          echo "Response: $PROJ_RESPONSE"
