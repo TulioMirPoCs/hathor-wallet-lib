@@ -97,7 +97,7 @@ jobs:
       - name: Fetch PR card Id
         id: proj_cardId
         env:
-          PR_URL: ${{ steps.create_pull.outputs.PR_NUMBER }}
+          PR_NUMBER: ${{ steps.create_pull.outputs.PR_NUMBER }}
         run: |
           REPO_NAME=$(basename ${{ github.repository }})
           QUERY="
